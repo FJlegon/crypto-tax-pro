@@ -217,7 +217,7 @@ def build_exchange_step(page: ft.Page, state: WizardState, on_next):
     continue_btn = ft.ElevatedButton(
         content=ft.Row([
             ft.Icon(ft.icons.ARROW_FORWARD, size=16),
-            ft.Text("Continue →", size=13, weight=ft.FontWeight.W_700),
+            ft.Text("Continue", size=13, weight=ft.FontWeight.W_700),
         ], spacing=6, tight=True),
         on_click=on_next,
         disabled=True,
@@ -306,7 +306,7 @@ def build_file_step(page: ft.Page, state: WizardState, on_back, on_next, input_p
 
     # Concrete button — we mutate .disabled directly, no Ref needed
     continue_btn = ft.ElevatedButton(
-        content=ft.Row([ft.Icon(ft.icons.ARROW_FORWARD, size=16), ft.Text("Continue →", size=13, weight=ft.FontWeight.W_700)], spacing=6, tight=True),
+        content=ft.Row([ft.Icon(ft.icons.ARROW_FORWARD, size=16), ft.Text("Continue", size=13, weight=ft.FontWeight.W_700)], spacing=6, tight=True),
         on_click=on_next,
         disabled=True,
         style=ft.ButtonStyle(
@@ -407,7 +407,7 @@ def build_file_step(page: ft.Page, state: WizardState, on_back, on_next, input_p
         file_list,
         ft.Container(height=8),
         ft.Row([
-            ghost_btn("← Back", on_back, ft.icons.ARROW_BACK),
+            ghost_btn("Back", on_back, ft.icons.ARROW_BACK),
             ft.Container(expand=True),
             continue_btn,
         ]),
@@ -471,10 +471,10 @@ def build_wallet_step(page: ft.Page, state: WizardState, on_back, on_next):
         notice,
         ft.Container(height=10),
         ft.Row([
-            ghost_btn("← Back", on_back, ft.icons.ARROW_BACK),
+            ghost_btn("Back", on_back, ft.icons.ARROW_BACK),
             ft.Container(expand=True),
             ft.ElevatedButton(
-                content=ft.Row([ft.Icon(ft.icons.ARROW_FORWARD, size=16), ft.Text("Continue →", size=13, weight=ft.FontWeight.W_700)], spacing=6, tight=True),
+                content=ft.Row([ft.Icon(ft.icons.ARROW_FORWARD, size=16), ft.Text("Continue", size=13, weight=ft.FontWeight.W_700)], spacing=6, tight=True),
                 on_click=on_next,
                 style=ft.ButtonStyle(
                     bgcolor={ft.ControlState.DEFAULT: AMBER},
@@ -708,7 +708,7 @@ def build_config_step(page: ft.Page, state: WizardState, on_back, on_next):
         ], spacing=4), bgcolor="#06060f"),
         ft.Container(height=10),
         ft.Row([
-            ghost_btn("← Back", on_back, ft.icons.ARROW_BACK),
+            ghost_btn("Back", on_back, ft.icons.ARROW_BACK),
             ft.Container(expand=True),
             ft.ElevatedButton(
                 content=ft.Row([ft.Icon(ft.icons.PLAY_ARROW, size=16), ft.Text("Run Calculation", size=13, weight=ft.FontWeight.W_700)], spacing=6, tight=True),
@@ -798,11 +798,11 @@ def build_processing_step(page: ft.Page, state: WizardState, on_done, on_error, 
             ], spacing=4), bgcolor=BG_CARD, padding=12),
             ft.Container(height=20),
             ft.Row([
-                ghost_btn("← Back to Config", on_back, ft.icons.ARROW_BACK),
+                ghost_btn("Back to Config", on_back, ft.icons.ARROW_BACK),
                 ft.Container(expand=True),
                 ft.ElevatedButton(
                     content=ft.Row([ft.Icon(ft.icons.ARROW_FORWARD, size=16),
-                                    ft.Text("Continue to Review →", size=13, weight=ft.FontWeight.W_700)],
+                                    ft.Text("Continue to Review", size=13, weight=ft.FontWeight.W_700)],
                                    spacing=6, tight=True),
                     on_click=on_done,
                     style=ft.ButtonStyle(
@@ -1164,7 +1164,7 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
             
             main_container.controls.extend([
                 ft.Row([
-                    ghost_btn("← Back to Summary", lambda e: (view_state.update(level=1), refresh_ui()), ft.icons.ARROW_BACK),
+                    ghost_btn("Back to Summary", lambda e: (view_state.update(level=1), refresh_ui()), ft.icons.ARROW_BACK),
                 ]),
                 card(ft.Column([
                     section_label("ASSET BREAKDOWN"),
@@ -1316,7 +1316,7 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
             month_grid = ft.Row(month_cards, wrap=True, spacing=10, run_spacing=10)
 
             main_container.controls.extend([
-                ft.Row([ghost_btn("← Back to Summary",
+                ft.Row([ghost_btn("Back to Summary",
                                   lambda e: (view_state.update(level=1), refresh_ui()),
                                   ft.icons.ARROW_BACK)]),
                 ft.Text("Monthly Breakdown", size=22, weight=ft.FontWeight.BOLD,
@@ -1470,7 +1470,7 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
 
             main_container.controls.extend([
                 ft.Row([
-                    ghost_btn("← Back to Months", back_fn, ft.icons.ARROW_BACK),
+                    ghost_btn("Back to Months", back_fn, ft.icons.ARROW_BACK),
                     ft.Container(expand=True),
                     ft.ElevatedButton("Export CSV", icon=ft.icons.DOWNLOAD,
                         style=ft.ButtonStyle(bgcolor=ft.ControlState.DEFAULT, color=ft.colors.WHITE),
@@ -1578,7 +1578,7 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
 
             main_container.controls.extend([
                 ft.Row([
-                    ghost_btn("← Back to Assets", back_fn, ft.icons.ARROW_BACK),
+                    ghost_btn("Back to Assets", back_fn, ft.icons.ARROW_BACK),
                     ft.Container(expand=True),
                     ft.ElevatedButton("Export CSV", icon=ft.icons.DOWNLOAD,
                         style=ft.ButtonStyle(bgcolor=ft.ControlState.DEFAULT, color=ft.colors.WHITE),
@@ -1629,10 +1629,10 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
             main_container.controls.extend([
                 ft.Container(height=10),
                 ft.Row([
-                    ghost_btn("← Back to Config", on_back, ft.icons.ARROW_BACK),
+                    ghost_btn("Back to Config", on_back, ft.icons.ARROW_BACK),
                     ft.Container(expand=True),
                     ft.ElevatedButton(
-                        content=ft.Row([ft.Icon(ft.icons.DOWNLOAD, size=16), ft.Text("Download Reports →", size=13, weight=ft.FontWeight.W_700)], spacing=6, tight=True),
+                        content=ft.Row([ft.Icon(ft.icons.DOWNLOAD, size=16), ft.Text("Download Reports", size=13, weight=ft.FontWeight.W_700)], spacing=6, tight=True),
                         on_click=on_next,
                         style=ft.ButtonStyle(
                             bgcolor=AMBER,
@@ -1733,7 +1733,7 @@ def build_download_step(page: ft.Page, state: WizardState, on_back, on_restart,
         ]), bgcolor="#060f06", border_color=ft.colors.GREEN_900, padding=14),
         ft.Container(height=10),
         ft.Row([
-            ghost_btn("← Back to Review", on_back, ft.icons.ARROW_BACK),
+            ghost_btn("Back to Review", on_back, ft.icons.ARROW_BACK),
             ft.Container(expand=True),
             ghost_btn("Start New Calculation", on_restart, ft.icons.REFRESH),
         ]),
