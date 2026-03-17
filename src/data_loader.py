@@ -5,6 +5,7 @@ Returns ValidationResult for UI feedback, then loads LedgerEntry objects.
 Supported exchanges:
 - Kraken: ledger format (txid, refid, time, type, asset, amount, fee, balance)
 - Coinbase: transactions format (Timestamp, Transaction Type, Asset, Quantity, etc.)
+- Binance: trades format (Date, Type, Market, Amount, Price, Total)
 - Generic: same as Kraken ledger format
 """
 import pandas as pd
@@ -236,6 +237,143 @@ def _load_coinbase_csv(
     return entries
 
 
+# Binance transaction type mapping to LedgerEntry type/subtype
+BINANCE_TYPE_MAPPING = {
+    "Buy": ("trade", "buy"),
+    "Sell": ("trade", "sell"),
+    "Deposit": ("deposit", ""),
+    "Withdrawal": ("withdrawal", ""),
+    "Reward": ("earn", "reward"),
+    "Staking": ("earn", "staking"),
+}
+
+
+def _parse_binance_date(date_str: str) -> Optional[datetime]:
+    """
+    Parse Binance date string into datetime object.
+    Tries formats: with time, then date-only.
+    """
+    ds = str(date_str).strip()
+    if not ds:
+        return None
+
+    # Try with time: "2024-01-01 10:30:45"
+    try:
+        return datetime.strptime(ds, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        pass
+
+    # Try date only: "2024-01-01"
+    try:
+        return datetime.strptime(ds, "%Y-%m-%d")
+    except ValueError:
+        pass
+
+    logger.warning(f"Unable to parse date: {date_str}")
+    return None
+
+
+def _map_binance_transaction_type(tx_type: str) -> tuple[str, str]:
+    """
+    Map Binance transaction type to LedgerEntry (type, subtype).
+    Returns ("unknown", "") for unmapped types.
+    """
+    return BINANCE_TYPE_MAPPING.get(tx_type, ("unknown", ""))
+
+
+def _parse_binance_market_pair(market: str) -> str:
+    """
+    Parse Binance market pair to extract base asset.
+    Input: "BTC/USDT" -> Output: "BTC"
+    """
+    pair = str(market).strip()
+    if "/" in pair:
+        return pair.split("/")[0]
+    return pair
+
+
+def _load_binance_csv(
+    df: pd.DataFrame,
+    wallet_id: str,
+) -> list[LedgerEntry]:
+    """
+    Parse Binance trade history CSV into LedgerEntry objects.
+
+    Column mapping:
+    - Date → time
+    - Type → type + subtype
+    - Market → asset (parse base currency from pair)
+    - Amount → amount
+    - Total → amountusd
+    - Fee → fee
+    """
+    entries = []
+
+    for _, row in df.iterrows():
+        # Parse date
+        date_val = str(row.get("Date", "") or "")
+        time_val = _parse_binance_date(date_val)
+        if not time_val:
+            logger.warning(f"Row skipped: unparseable date '{date_val}'")
+            continue
+
+        # Map transaction type
+        tx_type = str(row.get("Type", "")).strip()
+        entry_type, subtype = _map_binance_transaction_type(tx_type)
+
+        # Parse market pair to get asset
+        market = str(row.get("Market", "")).strip()
+        asset = _parse_binance_market_pair(market)
+        if not asset:
+            logger.warning("Row skipped: missing Market")
+            continue
+
+        # Parse amount
+        try:
+            amount_str = str(row.get("Amount", "0")).strip()
+            amount = Decimal(amount_str) if amount_str else Decimal("0")
+        except InvalidOperation:
+            amount = Decimal("0")
+
+        # Parse fee (optional)
+        try:
+            fee_str = str(row.get("Fee", "0")).strip()
+            fee = Decimal(fee_str) if fee_str else Decimal("0")
+        except InvalidOperation:
+            fee = Decimal("0")
+
+        # Parse amountusd from Total column
+        try:
+            total_str = str(row.get("Total", "0")).strip()
+            amountusd = Decimal(total_str) if total_str else Decimal("0")
+        except InvalidOperation:
+            amountusd = Decimal("0")
+
+        # Generate txid from date and market
+        txid = f"{time_val.strftime('%Y%m%d%H%M%S')}_{asset}"
+
+        try:
+            entry = LedgerEntry(
+                txid=txid,
+                refid=txid,
+                time=time_val,
+                type=entry_type,
+                subtype=subtype,
+                asset=asset,
+                amount=amount,
+                fee=fee,
+                balance=Decimal("0"),  # Binance doesn't provide running balance
+                amountusd=amountusd,
+                wallet_id=wallet_id,
+            )
+            entries.append(entry)
+        except (KeyError, InvalidOperation) as e:
+            logger.warning(f"Row skipped: invalid field for TXID '{txid}' ({e})")
+            continue
+
+    return entries
+
+
 def load_ledgers(
     filepath: str,
     wallet_id: str = "Kraken",
@@ -261,6 +399,9 @@ def load_ledgers(
     if config and config.file_type == "transactions":
         # Coinbase and similar exchanges use "transactions" format
         return _load_coinbase_csv(df, wallet_id)
+    elif config and config.file_type == "trades":
+        # Binance and similar exchanges use "trades" format
+        return _load_binance_csv(df, wallet_id)
 
     # Default: Kraken/generic ledger format
     entries = []
