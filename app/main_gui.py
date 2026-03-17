@@ -28,8 +28,8 @@ BG_DARK   = "#0d0d1a"
 BG_MID    = "#13132a"
 BG_CARD   = "#0a0a18"
 BORDER    = "#2a2a5a"
-AMBER     = ft.colors.AMBER_400
-GREY_TEXT = ft.colors.GREY_500
+AMBER     = "#ffbf00"  # Amber color
+GREY_TEXT = "#9e9e9e"  # Grey 500
 
 STEP_LABELS = ["Exchange", "Load Files", "Wallets", "Config", "Process", "Review", "Download"]
 
