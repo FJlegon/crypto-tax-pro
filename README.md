@@ -87,7 +87,8 @@ The tool identifies "Orphan Inflows" (transfers from unknown sources) and forces
 ## 🗺️ Roadmap
 
 ### 📍 Phase 1: Multi-Exchange Expansion (Q3 2026)
-- [ ] Native support for Coinbase and Binance CSV exports.
+- [x] Native support for Coinbase CSV exports.
+- [x] Native support for Binance CSV exports.
 - [ ] Direct MetaMask/Etherscan wallet syncing.
 - [ ] Automated fee calculation optimization for L2s (Arbitrum, Optimism).
 

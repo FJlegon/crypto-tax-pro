@@ -37,7 +37,25 @@ Defines the atomic objects of the system:
 Implements the FIFO (First-In-First-Out) algorithm restricted by the boundaries of each wallet. It includes the `_move_lots` logic to reconcile transfers.
 
 ### `src/data_loader.py`
-Normalizes CSVs from Kraken and other exchanges into an agnostic format. It groups transactions by `refid` to identify atomic multi-leg operations.
+Normalizes CSVs from supported exchanges into an agnostic format. It groups transactions by `refid` to identify atomic multi-leg operations.
+
+### Supported Exchanges
+
+The application currently supports the following exchange CSV formats:
+
+| Exchange | File Type | Description |
+|---------|-----------|-------------|
+| **Kraken** | ledger | Full ledger history with balances |
+| **Coinbase** | transactions | Transaction history with spot prices |
+| **Binance.US** | trades | Trade history with market pairs |
+| **Generic** | ledger | Fallback for custom CSV formats |
+
+#### Exchange Configuration (`src/exchange_manager.py`)
+Each exchange is configured with:
+- Required columns for validation
+- Optional columns for enhanced processing
+- Export guide instructions for users
+- File type dispatch (ledger/transactions/trades)
 
 ## 3. Security and Commercial Distribution
 
