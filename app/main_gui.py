@@ -1017,16 +1017,8 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
     asset_breakdown = get_asset_breakdown(filtered_events)
     
     # Get ordinary income data for monthly breakdown
-    ordinary_income = state.report_data.get("ordinary_income", Decimal("0"))
-    ordinary_income_events = state.report_data.get("ordinary_income_events", [])
-    # Use the date from the first ordinary income event, or empty string
-    income_date = ""
-    if ordinary_income_events:
-        first_dt = ordinary_income_events[0][0]
-        if hasattr(first_dt, 'strftime'):
-            income_date = first_dt.strftime("%Y-%m-%d")
-    
-    monthly_breakdown = get_monthly_breakdown(all_events, ordinary_income, income_date)
+    income_events = state.report_data.get("ordinary_income_events", [])
+    monthly_breakdown = get_monthly_breakdown(all_events, income_events)
     
     pie_data, _ = generate_pie_chart_data(asset_breakdown)
 
@@ -1063,15 +1055,8 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
         asset_breakdown = get_asset_breakdown(filtered_events)
         
         # Get ordinary income data for monthly breakdown
-        ordinary_income = state.report_data.get("ordinary_income", Decimal("0"))
-        ordinary_income_events = state.report_data.get("ordinary_income_events", [])
-        income_date = ""
-        if ordinary_income_events:
-            first_dt = ordinary_income_events[0][0]
-            if hasattr(first_dt, 'strftime'):
-                income_date = first_dt.strftime("%Y-%m-%d")
-        
-        monthly_breakdown = get_monthly_breakdown(all_events, ordinary_income, income_date)
+        income_events = state.report_data.get("ordinary_income_events", [])
+        monthly_breakdown = get_monthly_breakdown(all_events, income_events)
         
         pie_data, _ = generate_pie_chart_data(asset_breakdown)
 
@@ -1275,18 +1260,24 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
             sorted_months = sorted(monthly_breakdown.items())
 
             # ── Bar chart ─────────────────────────────────────────────────────
-            all_gains  = [float(d['gain']) for _, d in sorted_months]
+            all_gains  = [float(d['net_gain']) for _, d in sorted_months]
             max_abs    = max((abs(v) for v in all_gains), default=1) or 1
 
             bar_groups = []
             for idx, (month_key, data) in enumerate(sorted_months):
-                gain_val  = float(data['gain'])
+                gain_val  = float(data['net_gain'])
                 in_period = _month_in_period(month_key)
                 bar_color = (
                     (ft.colors.GREEN_400 if gain_val >= 0 else ft.colors.RED_400)
                     if in_period else
                     (ft.colors.GREEN_900 if gain_val >= 0 else ft.colors.RED_900)
                 )
+                
+                tooltip_parts = [f"Net Impact: ${gain_val:,.2f}"]
+                if data['ordinary_income'] > 0:
+                    tooltip_parts.append(f"Gains: ${float(data['gain']):,.2f}")
+                    tooltip_parts.append(f"Rewards: ${float(data['ordinary_income']):,.2f}")
+                
                 bar_groups.append(
                     ft.BarChartGroup(
                         x=idx,
@@ -1300,7 +1291,7 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
                                     top_left=4, top_right=4,
                                     bottom_left=4, bottom_right=4,
                                 ),
-                                tooltip=f"${gain_val:,.2f}",
+                                tooltip="\n".join(tooltip_parts),
                             )
                         ],
                     )
@@ -1349,7 +1340,8 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
             # ── Month cards ───────────────────────────────────────────────────
             month_cards = []
             for month_key, data in sorted_months:
-                c         = gc(data['gain'])
+                net_impact = data['net_gain']
+                c         = gc(net_impact)
                 in_period = _month_in_period(month_key)
                 try:
                     year, mo = int(month_key[:4]), int(month_key[5:])
@@ -1370,9 +1362,16 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
                 items = [
                     ft.Text(label, size=13, weight=ft.FontWeight.BOLD, color=label_color),
                     ft.Container(height=4),
-                    ft.Text(f"${data['gain']:,.2f}", size=15, weight=ft.FontWeight.BOLD, color=gain_color),
-                    ft.Text(f"{data['count']} transactions", size=10, color=GREY_TEXT),
+                    ft.Text(f"${net_impact:,.2f}", size=15, weight=ft.FontWeight.BOLD, color=gain_color),
                 ]
+                
+                # Breakdown text
+                breakdown_text = f"{data['count']} sales"
+                if data['ordinary_income'] > 0:
+                    breakdown_text += f"\n+ ${data['ordinary_income']:,.2f} rewards"
+                
+                items.append(ft.Text(breakdown_text, size=10, color=GREY_TEXT, text_align=ft.TextAlign.CENTER))
+
                 if not in_period:
                     items.append(ft.Container(
                         content=ft.Text("Outside period", size=8, color=ft.colors.AMBER_700),
