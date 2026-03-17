@@ -890,10 +890,13 @@ def build_processing_step(page: ft.Page, state: WizardState, on_done, on_error, 
                     sold = datetime.datetime.strptime(ev.date_sold, "%m/%d/%Y").date()
                     return state.period_start <= sold <= state.period_end
                 except ValueError:
-                    return True  # Keep events with unparseable dates to avoid silent data loss
-
-            engine.taxable_events = [ev for ev in engine.taxable_events if _in_period(ev)]
-            filtered_count = len(engine.taxable_events)
+                    return True  # Keep events with unparseable dates
+            
+            # Decouple: keep full list for charts, filtered for summary/reports
+            state.report_data["all_taxable_events"] = engine.taxable_events
+            state.report_data["filtered_taxable_events"] = [ev for ev in engine.taxable_events if _in_period(ev)]
+            
+            filtered_count = len(state.report_data["filtered_taxable_events"])
             
             # Filter ordinary income (staking/Earn)
             filtered_income = sum(
@@ -910,7 +913,7 @@ def build_processing_step(page: ft.Page, state: WizardState, on_done, on_error, 
             state.anomalies = detect_anomalies(engine.taxable_events, engine.audit_log)
 
             from src.wash_sale_detector import detect_security_wash_sales
-            wash_sales_count = detect_security_wash_sales(engine.taxable_events, events, security_tokens=frozenset(state.security_tokens))
+            wash_sales_count = detect_security_wash_sales(state.report_data["filtered_taxable_events"], events, security_tokens=frozenset(state.security_tokens))
             if wash_sales_count > 0:
                 append(f"  [!] {wash_sales_count} Wash Sales detected on SEC security tokens.")
             append(f"  [✓] {len(state.anomalies)} anomalies flagged.")
@@ -918,15 +921,15 @@ def build_processing_step(page: ft.Page, state: WizardState, on_done, on_error, 
             if state.form_1099_da_records:
                 append("[•] Reconciling with 1099-DA records...")
                 from src.form_1099_da_importer import reconcile_1099_da
-                matched_events, discrepancies = reconcile_1099_da(engine.taxable_events, state.form_1099_da_records)
-                engine.taxable_events = matched_events
+                matched_events, discrepancies = reconcile_1099_da(state.report_data["filtered_taxable_events"], state.form_1099_da_records)
+                state.report_data["filtered_taxable_events"] = matched_events
                 state.report_data["1099_discrepancies"] = len(discrepancies)
                 append(f"  [✓] 1099-DA: {len(discrepancies)} adjustments (Code T).")
 
             append("[•] Building output files...")
             state.report_data["wash_sales_count"] = wash_sales_count
-            state.report_data["form8949"] = build_form_8949_csv(engine.taxable_events)
-            state.report_data["turbotax"] = build_turbotax_csv(engine.taxable_events)
+            state.report_data["form8949"] = build_form_8949_csv(state.report_data["filtered_taxable_events"])
+            state.report_data["turbotax"] = build_turbotax_csv(state.report_data["filtered_taxable_events"])
             state.report_data["audit"] = build_audit_log(
                 engine.audit_log,
                 calc_method=state.calc_method,
@@ -964,14 +967,17 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
     if not engine:
         return ft.Text("No results — go back and re-run.", color=ft.colors.RED_300)
 
-    events = engine.taxable_events
-    st = sum((ev.gain_loss for ev in events if ev.term == "Short-Term"), Decimal("0"))
-    lt = sum((ev.gain_loss for ev in events if ev.term == "Long-Term"), Decimal("0"))
+    # Initial variables for build_review_step before first refresh
+    all_events = state.report_data.get("all_taxable_events", engine.taxable_events)
+    filtered_events = state.report_data.get("filtered_taxable_events", engine.taxable_events)
+    
+    st = sum((ev.gain_loss for ev in filtered_events if ev.term == "Short-Term"), Decimal("0"))
+    lt = sum((ev.gain_loss for ev in filtered_events if ev.term == "Long-Term"), Decimal("0"))
     net = st + lt
 
     from src.charts import get_asset_breakdown, get_monthly_breakdown, generate_pie_chart_data
-    asset_breakdown = get_asset_breakdown(events)
-    monthly_breakdown = get_monthly_breakdown(events)
+    asset_breakdown = get_asset_breakdown(filtered_events)
+    monthly_breakdown = get_monthly_breakdown(all_events)
     
     pie_data, _ = generate_pie_chart_data(asset_breakdown)
 
@@ -995,7 +1001,21 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
     def refresh_ui(e=None):
         main_container.controls.clear()
         lvl = view_state["level"]
+
+        # Ensure we have the latest data extracted from state
+        all_events = state.report_data.get("all_taxable_events", engine.taxable_events)
+        filtered_events = state.report_data.get("filtered_taxable_events", engine.taxable_events)
         
+        st = sum((ev.gain_loss for ev in filtered_events if ev.term == "Short-Term"), Decimal("0"))
+        lt = sum((ev.gain_loss for ev in filtered_events if ev.term == "Long-Term"), Decimal("0"))
+        net = st + lt
+
+        from src.charts import get_asset_breakdown, get_monthly_breakdown, generate_pie_chart_data
+        asset_breakdown = get_asset_breakdown(filtered_events)
+        monthly_breakdown = get_monthly_breakdown(all_events)
+        
+        pie_data, _ = generate_pie_chart_data(asset_breakdown)
+
         # ---------------- LEVEL 1: EXECUTIVE SUMMARY ----------------
         if lvl == 1:
             anomaly_controls = []
@@ -1017,8 +1037,8 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
                             anomaly.event_ref.term = e.control.value
                             anomaly.resolved = True
                             # Recalculate CSVs on change
-                            state.report_data["form8949"] = build_form_8949_csv(state.engine.taxable_events)
-                            state.report_data["turbotax"] = build_turbotax_csv(state.engine.taxable_events)
+                            state.report_data["form8949"] = build_form_8949_csv(state.report_data["filtered_taxable_events"])
+                            state.report_data["turbotax"] = build_turbotax_csv(state.report_data["filtered_taxable_events"])
                             state.report_data["audit"] = build_audit_log(
                                 state.engine.audit_log,
                                 calc_method=state.calc_method,
@@ -1065,7 +1085,7 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
                         ], expand=True),
                         ft.Column([
                             ft.Text("Taxable Events", size=11, color=GREY_TEXT),
-                            ft.Text(str(len(events)), size=18, color=ft.colors.WHITE, weight=ft.FontWeight.BOLD),
+                            ft.Text(str(len(filtered_events)), size=18, color=ft.colors.WHITE, weight=ft.FontWeight.BOLD),
                         ], expand=True),
                     ]),
                     ft.Divider(color=BORDER),
@@ -1347,24 +1367,23 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
             except Exception:
                 month_label = target
 
-            # Filter events for this month
-            filtered_events = []
-            for ev in events:
+            # Filter events for this month from ALL history for display
+            detail_events = []
+            for ev in all_events:
                 try:
-                    # Robust parsing to match charts.py logic
                     try:
                         ev_dt = _dt.strptime(ev.date_sold, "%m/%d/%Y")
                     except ValueError:
                         ev_dt = _dt.fromisoformat(ev.date_sold)
                     
                     if ev_dt.strftime("%Y-%m") == target:
-                        filtered_events.append(ev)
+                        detail_events.append(ev)
                 except Exception:
                     pass
 
             # ── Daily aggregation for bar chart ──────────────────────────
             daily = defaultdict(lambda: Decimal("0"))
-            for ev in filtered_events:
+            for ev in detail_events:
                 try:
                     try:
                         ev_dt = _dt.strptime(ev.date_sold, "%m/%d/%Y")
@@ -1411,10 +1430,10 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
             def render_table():
                 page_num = page_state["page"]
                 per_page = page_state["per_page"]
-                total = len(filtered_events)
+                total = len(detail_events)
                 total_pages = max(1, (total + per_page - 1) // per_page)
                 start = (page_num - 1) * per_page
-                page_events = filtered_events[start: start + per_page]
+                page_events = detail_events[start: start + per_page]
 
                 rows = []
                 for ev in page_events:
@@ -1517,7 +1536,7 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
         # Level 3A (asset transactions) – paginated
         elif lvl == "3A":
             target = view_state["selected_asset"]
-            filtered_events = [ev for ev in events if target in ev.description.split()]
+            filtered_events = [ev for ev in all_events if target in ev.description.split()]
             def back_fn(e): view_state["level"] = "2A"; refresh_ui()
 
             page_state_3a = {"page": 1, "per_page": 10}

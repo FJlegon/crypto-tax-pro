@@ -95,22 +95,29 @@ def get_monthly_breakdown(events: List[TaxableEvent]) -> Dict[str, Dict]:
     monthly_data = {}
     
     for e in events:
-        # Standard format is MM/DD/YYYY from FIFOEngine
+        # Try various formats
+        month_key = "Unknown"
+        date_str = str(e.date_sold).strip()
+        
         try:
-            dt = datetime.strptime(e.date_sold, "%m/%d/%Y")
-            month_key = dt.strftime("%Y-%m")
-        except ValueError:
-            # Try ISO fallback YYYY-MM-DD
-            try:
-                dt = datetime.fromisoformat(e.date_sold)
+            # Format: MM/DD/YYYY (Standard from FIFOEngine)
+            if '/' in date_str:
+                dt = datetime.strptime(date_str, "%m/%d/%Y")
                 month_key = dt.strftime("%Y-%m")
-            except ValueError:
-                # Last resort: if it's already YYYY-MM... or something else, 
-                # take first 7 chars only if it looks like YYYY-MM
-                if len(e.date_sold) >= 7 and e.date_sold[4] == '-':
-                    month_key = e.date_sold[:7]
-                else:
-                    month_key = "Unknown"
+            # Format: YYYY-MM-DD or YYYY-MM (ISO-like)
+            elif '-' in date_str:
+                if len(date_str) >= 10:
+                    dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
+                    month_key = dt.strftime("%Y-%m")
+                elif len(date_str) >= 7:
+                    # Already looks like YYYY-MM
+                    month_key = date_str[:7]
+        except Exception:
+            # Fallback if specific parsing fails
+            if len(date_str) >= 7 and date_str[4] == '-':
+                month_key = date_str[:7]
+            elif len(date_str) >= 10 and date_str[2] == '/' and date_str[5] == '/':
+                month_key = f"{date_str[6:10]}-{date_str[0:2]}"
         
         if month_key not in monthly_data:
             monthly_data[month_key] = {
