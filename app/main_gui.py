@@ -369,8 +369,29 @@ def build_file_step(page: ft.Page, state: WizardState, on_back, on_next, input_p
         refresh_list()
 
     def on_files_picked(e: ft.FilePickerResultEvent):
-        if e.files:
-            ex_key = state.selected_exchanges[0] if state.selected_exchanges else "kraken"
+        if not e.files:
+            return
+
+        ex_key = state.selected_exchanges[0] if state.selected_exchanges else "kraken"
+        
+        # In Flet Web, f.path is None. We must use upload_files.
+        if page.web:
+            upload_list = []
+            for f in e.files:
+                # We save to a local 'temp_uploads' folder in the project
+                target_path = os.path.join(project_root, "app", "temp_uploads", f.name)
+                upload_list.append(ft.FilePickerUploadFile(f.name, upload_url=page.get_upload_url(f.name, 600)))
+                
+                # Pre-add to state with a placeholder path; it will be validated after upload
+                state.uploaded_files.append({
+                    "path": target_path, "wallet": f.name.split("_")[0].capitalize(), "name": f.name,
+                    "exchange_key": ex_key, "validation": None,
+                })
+            
+            # Start upload
+            input_picker.upload_files(upload_list)
+        else:
+            # Desktop mode: paths are local and immediate
             for f in e.files:
                 wallet = f.name.split("_")[0].capitalize()
                 validation = validate_file(f.path, ex_key)
@@ -378,9 +399,19 @@ def build_file_step(page: ft.Page, state: WizardState, on_back, on_next, input_p
                     "path": f.path, "wallet": wallet, "name": f.name,
                     "exchange_key": ex_key, "validation": validation,
                 })
-        refresh_list()
+            refresh_list()
+
+    def on_upload_progress(e: ft.FilePickerUploadEvent):
+        if e.status == "completed":
+            # Once uploaded, we can validate the local files in temp_uploads
+            ex_key = state.selected_exchanges[0] if state.selected_exchanges else "kraken"
+            for f_state in state.uploaded_files:
+                if f_state.get("validation") is None:
+                    f_state["validation"] = validate_file(f_state["path"], ex_key)
+            refresh_list()
 
     input_picker.on_result = on_files_picked
+    input_picker.on_upload = on_upload_progress
 
     hint_text = ""
     if state.selected_exchanges:
@@ -1780,6 +1811,7 @@ def main(page: ft.Page):
     state = WizardState()
 
     input_picker   = ft.FilePicker()
+    input_picker.upload_path = os.path.join(project_root, "app", "temp_uploads")
     save_8949_picker = ft.FilePicker()
     save_tt_picker   = ft.FilePicker()
     save_audit_picker = ft.FilePicker()
