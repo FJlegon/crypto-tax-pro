@@ -82,7 +82,7 @@ EXCHANGES: dict[str, ExchangeConfig] = {
         key="etherscan",
         name="Etherscan (Wallet)",
         icon="account_balance_wallet",
-        color="#x3448f5",
+        color="#3448f5",
         file_type="api",
         required_cols=set(),
         optional_cols=set(),
@@ -130,7 +130,7 @@ EXCHANGES: dict[str, ExchangeConfig] = {
 
 
 def get_enabled_exchanges() -> list[ExchangeConfig]:
-    return [ex for ex in EXCHANGES.values()]
+    return [ex for ex in EXCHANGES.values() if ex.enabled]
 
 
 def get_exchange(key: str) -> Optional[ExchangeConfig]:

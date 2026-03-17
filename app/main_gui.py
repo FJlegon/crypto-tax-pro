@@ -262,6 +262,7 @@ def build_exchange_step(page: ft.Page, state: WizardState, on_next):
                     on_click=(lambda e, k=ex.key: on_toggle(k)) if not ex.coming_soon else None,
                     opacity=1.0 if not ex.coming_soon else 0.45,
                     width=145,
+                    height=130,
                 )
             )
         for i in range(0, len(row_items), 3):
