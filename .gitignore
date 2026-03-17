@@ -53,10 +53,8 @@ build/
 
 # Agent Specific
 .agent/
+.opencode/
 AGENTS.md
 agents.md
-
-# Agents
-.agent/
 .claude/
-AGENTS.md
+*opencode.json
