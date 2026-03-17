@@ -84,6 +84,25 @@ The tool identifies "Orphan Inflows" (transfers from unknown sources) and forces
 
 ---
 
+## 🗺️ Roadmap
+
+### 📍 Phase 1: Multi-Exchange Expansion (Q3 2026)
+- [ ] Native support for Coinbase and Binance CSV exports.
+- [ ] Direct MetaMask/Etherscan wallet syncing.
+- [ ] Automated fee calculation optimization for L2s (Arbitrum, Optimism).
+
+### 📍 Phase 2: Advanced Tax Engines (Q4 2026)
+- [ ] **Tax-Loss Harvesting Advisor**: Real-time identification of loss-realization opportunities.
+- [ ] **NFT Tracking**: Full cost basis for ERC-721 and ERC-1155 tokens.
+- [ ] Multi-year wash sale mitigation patterns.
+
+### 📍 Phase 3: Reporting & Compliance (2027)
+- [ ] Automated Form 1099-DA reconciliation dashboard.
+- [ ] Export to professional tax software (Standard XML format).
+- [ ] Non-custodial cloud backup with encryption.
+
+---
+
 ## ⚠️ Disclaimer
 *This tool is for informational purposes only. The developers are not tax professionals or CPAs. Cryptocurrency tax laws vary by jurisdiction and are subject to change. Always verify your results with a qualified professional before filing.*
 
