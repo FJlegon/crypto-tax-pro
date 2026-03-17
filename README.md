@@ -8,7 +8,7 @@
 
 | Welcome Screen | Data Mapping (Step 3) | Analysis (Step 5) |
 | :---: | :---: | :---: |
-| ![Welcome](docs/assets/screenshots/Welcome.png) | ![Mapping](docs/assets/screenshots/Step-3.png) | ![Analysis](docs/assets/screenshots/Step-5.png) |
+| ![Welcome](./docs/assets/screenshots/Welcome.png) | ![Mapping](./docs/assets/screenshots/Step-3.png) | ![Analysis](./docs/assets/screenshots/Step-5.png) |
 
 > [!TIP]
 > The app features a 7-step wizard that guides you from raw exchange data to completed tax forms in minutes.
