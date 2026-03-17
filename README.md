@@ -1,5 +1,7 @@
 # Crypto Tax Pro 🚀
 
+![Crypto Tax Pro Banner](docs/assets/banner.png)
+
 **Crypto Tax Pro** is a high-performance, privacy-first cryptocurrency tax calculator. Designed for the modern investor, it allows you to process thousands of transactions locally, ensuring your financial data never leaves your machine.
 
 ---
