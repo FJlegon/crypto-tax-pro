@@ -51,14 +51,14 @@ EXCHANGES: dict[str, ExchangeConfig] = {
                        "Spot Price Currency", "Spot Price at Transaction", "Total (inclusive of fees and/or spread)"},
         optional_cols={"Notes", "ID"},
         guide=[
-            "1. Log in to Coinbase → Profile → Statements.",
+            "1. Log in to Coinbase → Portfolio → Statements.",
             "2. Click 'Generate' → select 'Transaction History'.",
             "3. Choose date range: Jan 1 – Dec 31, 2025.",
             "4. Download the CSV file.",
         ],
         export_url="https://accounts.coinbase.com/profile",
-        enabled=False,
-        coming_soon=True,
+        enabled=True,
+        coming_soon=False,
     ),
     "binanceus": ExchangeConfig(
         key="binanceus",

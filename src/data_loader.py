@@ -1,6 +1,11 @@
 """
 data_loader.py — CSV parser with per-exchange validation.
 Returns ValidationResult for UI feedback, then loads LedgerEntry objects.
+
+Supported exchanges:
+- Kraken: ledger format (txid, refid, time, type, asset, amount, fee, balance)
+- Coinbase: transactions format (Timestamp, Transaction Type, Asset, Quantity, etc.)
+- Generic: same as Kraken ledger format
 """
 import pandas as pd
 from dataclasses import dataclass, field
@@ -31,7 +36,7 @@ def validate_file(filepath: str, exchange_key: str = "kraken") -> ValidationResu
     Reads the first rows of a CSV and validates it against the exchange config.
     Returns a ValidationResult with status, row count, date range, and any issues.
     """
-    config: ExchangeConfig = EXCHANGES.get(exchange_key)
+    config: Optional[ExchangeConfig] = EXCHANGES.get(exchange_key)
     if not config:
         return ValidationResult(status="error", message=f"Unknown exchange: {exchange_key}")
 
@@ -82,6 +87,155 @@ def validate_file(filepath: str, exchange_key: str = "kraken") -> ValidationResu
     )
 
 
+# Coinbase transaction type mapping to LedgerEntry type/subtype
+COINBASE_TYPE_MAPPING = {
+    "Buy": ("trade", "buy"),
+    "Sell": ("trade", "sell"),
+    "Deposit": ("deposit", ""),
+    "Withdrawal": ("withdrawal", ""),
+    "Reward": ("earn", "reward"),
+    "Staking": ("earn", "staking"),
+    "Coinbase Earn": ("income", "earn"),
+    "Advanced Trade Buy": ("trade", "buy"),
+    "Advanced Trade Sell": ("trade", "sell"),
+    "Receive": ("deposit", ""),
+    "Send": ("withdrawal", ""),
+}
+
+
+def _parse_coinbase_timestamp(timestamp_str: str) -> Optional[datetime]:
+    """
+    Parse Coinbase timestamp string into datetime object.
+    Tries multiple formats: 12-hour with AM/PM, ISO, and 24-hour.
+    """
+    ts = str(timestamp_str).strip()
+    if not ts:
+        return None
+
+    # Try 12-hour format: "1/15/2025 10:30:45 AM"
+    try:
+        return datetime.strptime(ts, "%m/%d/%Y %I:%M:%S %p")
+    except ValueError:
+        pass
+
+    # Try ISO format: "2025-01-15T10:30:45Z"
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00").replace("z", "+00:00"))
+    except ValueError:
+        pass
+
+    # Try 24-hour format: "2025-01-15 10:30:45"
+    try:
+        return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        pass
+
+    logger.warning(f"Unable to parse timestamp: {timestamp_str}")
+    return None
+
+
+def _map_coinbase_transaction_type(tx_type: str) -> tuple[str, str]:
+    """
+    Map Coinbase transaction type to LedgerEntry (type, subtype).
+    Returns ("unknown", "") for unmapped types.
+    """
+    return COINBASE_TYPE_MAPPING.get(tx_type, ("unknown", ""))
+
+
+def _load_coinbase_csv(
+    df: pd.DataFrame,
+    wallet_id: str,
+) -> list[LedgerEntry]:
+    """
+    Parse Coinbase Transaction History CSV into LedgerEntry objects.
+
+    Column mapping:
+    - Timestamp → time
+    - Transaction Type → type + subtype
+    - Asset → asset
+    - Quantity Transacted → amount
+    - Total (inclusive of fees and/or spread) → fee (fees portion)
+    - Spot Price at Transaction × Quantity → amountusd
+    - ID → txid
+    """
+    entries = []
+
+    for _, row in df.iterrows():
+        # Parse timestamp
+        timestamp_val = str(row.get("Timestamp", "") or "")
+        time_val = _parse_coinbase_timestamp(timestamp_val)
+        if not time_val:
+            logger.warning(f"Row skipped: unparseable timestamp '{timestamp_val}'")
+            continue
+
+        # Map transaction type
+        tx_type = str(row.get("Transaction Type", "")).strip()
+        entry_type, subtype = _map_coinbase_transaction_type(tx_type)
+
+        # Parse asset
+        asset = str(row.get("Asset", "")).strip()
+        if not asset:
+            logger.warning("Row skipped: missing Asset")
+            continue
+
+        # Parse quantity (amount)
+        try:
+            quantity_str = str(row.get("Quantity Transacted", "0")).strip()
+            quantity = Decimal(quantity_str) if quantity_str else Decimal("0")
+        except InvalidOperation:
+            quantity = Decimal("0")
+
+        # Parse fees from "Total (inclusive of fees and/or spread)"
+        # The Total column includes the fees, so we need to estimate or extract
+        fee = Decimal("0")
+        try:
+            total_str = str(row.get("Total (inclusive of fees and/or spread)", "0")).strip()
+            if total_str:
+                # Total is negative for buys (you paid), positive for sells (you received)
+                # We need to handle the sign appropriately
+                total = Decimal(total_str)
+                # For now, set fee to 0 - the Total column is the net amount
+                # Future: could calculate fee as Total - (Spot Price * Quantity)
+        except InvalidOperation:
+            total = Decimal("0")
+
+        # Calculate amountusd from spot price × quantity
+        amountusd = Decimal("0")
+        try:
+            spot_price_str = str(row.get("Spot Price at Transaction", "0")).strip()
+            if spot_price_str:
+                spot_price = Decimal(spot_price_str)
+                amountusd = (spot_price * quantity).quantize(Decimal("0.01"))
+        except InvalidOperation:
+            amountusd = Decimal("0")
+
+        # Get txid from ID column
+        txid = str(row.get("ID", "")).strip()
+        if not txid:
+            txid = f"{time_val.strftime('%Y%m%d%H%M%S')}_{asset}"
+
+        try:
+            entry = LedgerEntry(
+                txid=txid,
+                refid=txid,
+                time=time_val,
+                type=entry_type,
+                subtype=subtype,
+                asset=asset,
+                amount=quantity,
+                fee=fee,
+                balance=Decimal("0"),  # Coinbase doesn't provide running balance
+                amountusd=amountusd,
+                wallet_id=wallet_id,
+            )
+            entries.append(entry)
+        except (KeyError, InvalidOperation) as e:
+            logger.warning(f"Row skipped: invalid field for TXID '{txid}' ({e})")
+            continue
+
+    return entries
+
+
 def load_ledgers(
     filepath: str,
     wallet_id: str = "Kraken",
@@ -101,6 +255,14 @@ def load_ledgers(
         )
 
     df = pd.read_csv(filepath).fillna("")
+
+    # Dispatch to exchange-specific parser based on file_type
+    config = EXCHANGES.get(exchange_key)
+    if config and config.file_type == "transactions":
+        # Coinbase and similar exchanges use "transactions" format
+        return _load_coinbase_csv(df, wallet_id)
+
+    # Default: Kraken/generic ledger format
     entries = []
 
     for _, row in df.iterrows():
