@@ -41,8 +41,9 @@ reports/*
 !reports/.gitkeep
 build_log*.txt
 tmp/
-app/assets/screenshots/*
-!app/assets/screenshots/.gitkeep
+# Documentation assets are allowed
+docs/assets/screenshots/*.png
+!docs/assets/screenshots/.gitkeep
 
 # Flet / OS specific
 __pycache__/

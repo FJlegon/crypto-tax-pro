@@ -4,6 +4,17 @@
 
 ---
 
+## 🖼️ Visual Walkthrough
+
+| Welcome Screen | Data Mapping (Step 3) | Analysis (Step 5) |
+| :---: | :---: | :---: |
+| ![Welcome](docs/assets/screenshots/Welcome.png) | ![Mapping](docs/assets/screenshots/Step-3.png) | ![Analysis](docs/assets/screenshots/Step-5.png) |
+
+> [!TIP]
+> The app features a 7-step wizard that guides you from raw exchange data to completed tax forms in minutes.
+
+---
+
 ## ✨ Key Features
 
 *   🔒 **Privacy First:** 100% local processing. No cloud, no tracking.
@@ -30,10 +41,10 @@ graph LR
 ## 🛠️ Getting Started
 
 ### Prerequisites
-- Python 3.10 or higher
-- [Poetry](https://python-poetry.org/) or `pip`
+- Python 3.10+
+- [Flet](https://flet.dev/) and dependencies (see `requirements.txt`)
 
-### Installation
+### Quick Start
 1.  **Clone the Repo**
     ```bash
     git clone https://github.com/yourusername/crypto-tax-pro.git
@@ -45,30 +56,31 @@ graph LR
     # Windows: .venv\Scripts\activate | Linux/macOS: source .venv/bin/activate
     pip install -r requirements.txt
     ```
+3.  **Run the App**
+    ```bash
+    python app/main_gui.py
+    ```
 
 ---
 
-## 🚀 Usage
+## 📖 Documentation & Technicals
 
-### Graphical Interface
-The easiest way to calculate your taxes. Perfect for most users:
-```bash
-python app/main_gui.py
-```
+### [Technical Reference](docs/TECHNICAL_REFERENCE.md)
+*   **Wallet-by-Wallet Tracking**: Complies with IRS 2026 standards (Rev. Proc. 2024-28).
+*   **High Performance**: Processes 10k+ transactions in seconds using optimized FIFO engines.
+*   **Local Security**: All data stays in `data/` and is never transmitted online.
 
-### Advanced CLI
-For power users and automation:
-```bash
-python main.py --help
-```
+### [Build & Compilation](docs/BUILD_GUIDE.md)
+*   **Cross-Platform**: Compile to native `.exe` (Windows), `.apk` (Android), or `.ipa` (iOS).
+*   **Production Ready**: Detailed steps for icon generation and code protection.
+
+### [Contributing Guidelines](CONTRIBUTING.md)
+We welcome community contributions! Please check our guidelines and [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ---
 
-## 📖 Documentation
-For more detailed information, check out our documentation:
-- [Technical Reference](docs/TECHNICAL_REFERENCE.md)
-- [Build and Compilation Guide](docs/BUILD_GUIDE.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
+## 📜 Audit Trace & Reporting
+The tool identifies "Orphan Inflows" (transfers from unknown sources) and forces a $0 cost basis if no history is found, ensuring you are never over-exposed in an audit.
 
 ---
 
