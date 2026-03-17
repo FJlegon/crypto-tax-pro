@@ -93,15 +93,13 @@ def get_tax_summary(events: List[TaxableEvent], ordinary_income: Decimal) -> Dic
 
 def get_monthly_breakdown(
     events: List[TaxableEvent],
-    ordinary_income: Decimal = Decimal("0"),
-    ordinary_income_date: str = ""
+    income_events: List[Tuple[object, Decimal]] = None
 ) -> Dict[str, Dict]:
     """Returns monthly data keyed as YYYY-MM.
     
     Args:
         events: List of taxable events (sales/trades)
-        ordinary_income: Total ordinary income (staking/rewards) to include
-        ordinary_income_date: Date string for ordinary income (defaults to current date)
+        income_events: List of (datetime, Decimal) ordinary income events
     """
     monthly_data = {}
     
@@ -110,14 +108,14 @@ def get_monthly_breakdown(
         month_key = "Unknown"
         date_str = str(e.date_sold).strip()
         
-        # Robust date parsing using pandas
+        # Robust date parsing
         if date_str and date_str != "Unknown":
             try:
-                # Try parsing with pandas (handles most formats)
+                # pandas handles mixed formats well
                 dt = pd.to_datetime(date_str, format='mixed', dayfirst=False)
                 month_key = dt.strftime("%Y-%m")
             except Exception:
-                # Fallback to manual parsing for common formats
+                # Simple fallback
                 try:
                     if '/' in date_str:
                         dt = datetime.strptime(date_str, "%m/%d/%Y")
@@ -142,31 +140,31 @@ def get_monthly_breakdown(
         monthly_data[month_key]['gain'] += e.gain_loss
         monthly_data[month_key]['count'] += 1
     
-    # Add ordinary income to the specified month or most recent
-    if ordinary_income != Decimal("0"):
-        income_month_key = "Unknown"
-        
-        if ordinary_income_date:
+    # Process ordinary income events (staking/rewards)
+    if income_events:
+        for dt, amt in income_events:
+            income_month_key = "Unknown"
             try:
-                dt = pd.to_datetime(ordinary_income_date, format='mixed', dayfirst=False)
-                income_month_key = dt.strftime("%Y-%m")
+                # Handle both datetime and string dates
+                dt_parsed = pd.to_datetime(dt, format='mixed', dayfirst=False)
+                income_month_key = dt_parsed.strftime("%Y-%m")
             except Exception:
-                # Use current month as fallback
-                income_month_key = datetime.now().strftime("%Y-%m")
-        else:
-            # Use current month as fallback
-            income_month_key = datetime.now().strftime("%Y-%m")
-        
-        if income_month_key not in monthly_data:
-            monthly_data[income_month_key] = {
-                'proceeds': Decimal('0'),
-                'cost_basis': Decimal('0'),
-                'gain': Decimal('0'),
-                'count': 0,
-                'ordinary_income': Decimal('0'),
-            }
-        
-        monthly_data[income_month_key]['ordinary_income'] += ordinary_income
+                income_month_key = "Unknown"
+            
+            if income_month_key not in monthly_data:
+                monthly_data[income_month_key] = {
+                    'proceeds': Decimal('0'),
+                    'cost_basis': Decimal('0'),
+                    'gain': Decimal('0'),
+                    'count': 0,
+                    'ordinary_income': Decimal('0'),
+                }
+            
+            monthly_data[income_month_key]['ordinary_income'] += amt
+
+    # Calculate net_gain for each month (gain + ordinary_income)
+    for m in monthly_data:
+        monthly_data[m]['net_gain'] = monthly_data[m]['gain'] + monthly_data[m]['ordinary_income']
     
     return dict(sorted(monthly_data.items()))
 
