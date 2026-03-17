@@ -935,7 +935,13 @@ def build_processing_step(page: ft.Page, state: WizardState, on_done, on_error, 
                 amt for dt, amt in engine.ordinary_income_events
                 if state.period_start <= (dt.date() if hasattr(dt, 'date') else dt) <= state.period_end
             )
+            # Store both total and individual events for monthly breakdown
+            filtered_income_events = [
+                (dt, amt) for dt, amt in engine.ordinary_income_events
+                if state.period_start <= (dt.date() if hasattr(dt, 'date') else dt) <= state.period_end
+            ]
             state.report_data["ordinary_income"] = filtered_income
+            state.report_data["ordinary_income_events"] = filtered_income_events
             
             append(f"  [✓] {filtered_count} events within selected period ({state.period_start} – {state.period_end}).")
             if filtered_count < total_events:
@@ -1009,7 +1015,18 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
 
     from src.charts import get_asset_breakdown, get_monthly_breakdown, generate_pie_chart_data
     asset_breakdown = get_asset_breakdown(filtered_events)
-    monthly_breakdown = get_monthly_breakdown(all_events)
+    
+    # Get ordinary income data for monthly breakdown
+    ordinary_income = state.report_data.get("ordinary_income", Decimal("0"))
+    ordinary_income_events = state.report_data.get("ordinary_income_events", [])
+    # Use the date from the first ordinary income event, or empty string
+    income_date = ""
+    if ordinary_income_events:
+        first_dt = ordinary_income_events[0][0]
+        if hasattr(first_dt, 'strftime'):
+            income_date = first_dt.strftime("%Y-%m-%d")
+    
+    monthly_breakdown = get_monthly_breakdown(all_events, ordinary_income, income_date)
     
     pie_data, _ = generate_pie_chart_data(asset_breakdown)
 
@@ -1044,7 +1061,17 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
 
         from src.charts import get_asset_breakdown, get_monthly_breakdown, generate_pie_chart_data
         asset_breakdown = get_asset_breakdown(filtered_events)
-        monthly_breakdown = get_monthly_breakdown(all_events)
+        
+        # Get ordinary income data for monthly breakdown
+        ordinary_income = state.report_data.get("ordinary_income", Decimal("0"))
+        ordinary_income_events = state.report_data.get("ordinary_income_events", [])
+        income_date = ""
+        if ordinary_income_events:
+            first_dt = ordinary_income_events[0][0]
+            if hasattr(first_dt, 'strftime'):
+                income_date = first_dt.strftime("%Y-%m-%d")
+        
+        monthly_breakdown = get_monthly_breakdown(all_events, ordinary_income, income_date)
         
         pie_data, _ = generate_pie_chart_data(asset_breakdown)
 

@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import List, Dict, Tuple
 from dataclasses import dataclass
 from datetime import datetime
+import pandas as pd
 from .models import TaxableEvent
 
 @dataclass
@@ -90,34 +91,42 @@ def get_tax_summary(events: List[TaxableEvent], ordinary_income: Decimal) -> Dic
         'total_cost_basis': total_cost,
     }
 
-def get_monthly_breakdown(events: List[TaxableEvent]) -> Dict[str, Dict]:
-    """Returns monthly data keyed as YYYY-MM."""
+def get_monthly_breakdown(
+    events: List[TaxableEvent],
+    ordinary_income: Decimal = Decimal("0"),
+    ordinary_income_date: str = ""
+) -> Dict[str, Dict]:
+    """Returns monthly data keyed as YYYY-MM.
+    
+    Args:
+        events: List of taxable events (sales/trades)
+        ordinary_income: Total ordinary income (staking/rewards) to include
+        ordinary_income_date: Date string for ordinary income (defaults to current date)
+    """
     monthly_data = {}
     
+    # Process taxable events (sales/trades)
     for e in events:
-        # Try various formats
         month_key = "Unknown"
         date_str = str(e.date_sold).strip()
         
-        try:
-            # Format: MM/DD/YYYY (Standard from FIFOEngine)
-            if '/' in date_str:
-                dt = datetime.strptime(date_str, "%m/%d/%Y")
+        # Robust date parsing using pandas
+        if date_str and date_str != "Unknown":
+            try:
+                # Try parsing with pandas (handles most formats)
+                dt = pd.to_datetime(date_str, format='mixed', dayfirst=False)
                 month_key = dt.strftime("%Y-%m")
-            # Format: YYYY-MM-DD or YYYY-MM (ISO-like)
-            elif '-' in date_str:
-                if len(date_str) >= 10:
-                    dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
-                    month_key = dt.strftime("%Y-%m")
-                elif len(date_str) >= 7:
-                    # Already looks like YYYY-MM
-                    month_key = date_str[:7]
-        except Exception:
-            # Fallback if specific parsing fails
-            if len(date_str) >= 7 and date_str[4] == '-':
-                month_key = date_str[:7]
-            elif len(date_str) >= 10 and date_str[2] == '/' and date_str[5] == '/':
-                month_key = f"{date_str[6:10]}-{date_str[0:2]}"
+            except Exception:
+                # Fallback to manual parsing for common formats
+                try:
+                    if '/' in date_str:
+                        dt = datetime.strptime(date_str, "%m/%d/%Y")
+                        month_key = dt.strftime("%Y-%m")
+                    elif '-' in date_str and len(date_str) >= 10:
+                        dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
+                        month_key = dt.strftime("%Y-%m")
+                except Exception:
+                    month_key = "Unknown"
         
         if month_key not in monthly_data:
             monthly_data[month_key] = {
@@ -125,12 +134,39 @@ def get_monthly_breakdown(events: List[TaxableEvent]) -> Dict[str, Dict]:
                 'cost_basis': Decimal('0'),
                 'gain': Decimal('0'),
                 'count': 0,
+                'ordinary_income': Decimal('0'),
             }
         
         monthly_data[month_key]['proceeds'] += e.proceeds
         monthly_data[month_key]['cost_basis'] += e.cost_basis
         monthly_data[month_key]['gain'] += e.gain_loss
         monthly_data[month_key]['count'] += 1
+    
+    # Add ordinary income to the specified month or most recent
+    if ordinary_income != Decimal("0"):
+        income_month_key = "Unknown"
+        
+        if ordinary_income_date:
+            try:
+                dt = pd.to_datetime(ordinary_income_date, format='mixed', dayfirst=False)
+                income_month_key = dt.strftime("%Y-%m")
+            except Exception:
+                # Use current month as fallback
+                income_month_key = datetime.now().strftime("%Y-%m")
+        else:
+            # Use current month as fallback
+            income_month_key = datetime.now().strftime("%Y-%m")
+        
+        if income_month_key not in monthly_data:
+            monthly_data[income_month_key] = {
+                'proceeds': Decimal('0'),
+                'cost_basis': Decimal('0'),
+                'gain': Decimal('0'),
+                'count': 0,
+                'ordinary_income': Decimal('0'),
+            }
+        
+        monthly_data[income_month_key]['ordinary_income'] += ordinary_income
     
     return dict(sorted(monthly_data.items()))
 
