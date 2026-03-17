@@ -1,6 +1,7 @@
 from decimal import Decimal
 from typing import List, Dict, Tuple
 from dataclasses import dataclass
+from datetime import datetime
 from .models import TaxableEvent
 
 @dataclass
@@ -94,12 +95,22 @@ def get_monthly_breakdown(events: List[TaxableEvent]) -> Dict[str, Dict]:
     monthly_data = {}
     
     for e in events:
+        # Standard format is MM/DD/YYYY from FIFOEngine
         try:
-            from datetime import datetime as _dt
-            # date_sold format is MM/DD/YYYY — convert to YYYY-MM key
-            month_key = _dt.strptime(e.date_sold, "%m/%d/%Y").strftime("%Y-%m")
-        except Exception:
-            month_key = e.date_sold[:7]  # fallback
+            dt = datetime.strptime(e.date_sold, "%m/%d/%Y")
+            month_key = dt.strftime("%Y-%m")
+        except ValueError:
+            # Try ISO fallback YYYY-MM-DD
+            try:
+                dt = datetime.fromisoformat(e.date_sold)
+                month_key = dt.strftime("%Y-%m")
+            except ValueError:
+                # Last resort: if it's already YYYY-MM... or something else, 
+                # take first 7 chars only if it looks like YYYY-MM
+                if len(e.date_sold) >= 7 and e.date_sold[4] == '-':
+                    month_key = e.date_sold[:7]
+                else:
+                    month_key = "Unknown"
         
         if month_key not in monthly_data:
             monthly_data[month_key] = {

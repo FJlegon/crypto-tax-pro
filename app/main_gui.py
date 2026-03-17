@@ -1231,7 +1231,7 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
                 ft.ChartAxisLabel(
                     value=idx,
                     label=ft.Text(
-                        MONTH_ABBR.get(int(mk[5:]), mk[5:]),
+                        f"{MONTH_ABBR.get(int(mk[5:]), mk[5:])} '{mk[2:4]}",
                         size=9,
                         color=ft.colors.WHITE if _month_in_period(mk) else GREY_TEXT,
                     )
@@ -1351,7 +1351,13 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
             filtered_events = []
             for ev in events:
                 try:
-                    if _dt.strptime(ev.date_sold, "%m/%d/%Y").strftime("%Y-%m") == target:
+                    # Robust parsing to match charts.py logic
+                    try:
+                        ev_dt = _dt.strptime(ev.date_sold, "%m/%d/%Y")
+                    except ValueError:
+                        ev_dt = _dt.fromisoformat(ev.date_sold)
+                    
+                    if ev_dt.strftime("%Y-%m") == target:
                         filtered_events.append(ev)
                 except Exception:
                     pass
@@ -1360,7 +1366,11 @@ def build_review_step(page: ft.Page, state: WizardState, on_back, on_next):
             daily = defaultdict(lambda: Decimal("0"))
             for ev in filtered_events:
                 try:
-                    day = _dt.strptime(ev.date_sold, "%m/%d/%Y").strftime("%d")
+                    try:
+                        ev_dt = _dt.strptime(ev.date_sold, "%m/%d/%Y")
+                    except ValueError:
+                        ev_dt = _dt.fromisoformat(ev.date_sold)
+                    day = ev_dt.strftime("%d")
                     daily[day] += ev.gain_loss
                 except Exception:
                     pass
