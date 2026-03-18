@@ -6,9 +6,9 @@
 
 ## 🖼️ Visual Walkthrough
 
-![Dashboard Mockup](docs/assets/screenshots/Dashboard.png)
+![Benefits Banner](docs/assets/screenshots/Banner.png)
 
-*A premium dark-themed dashboard featuring a 7-step wizard navigation, multi-asset charts, and monthly breakdown insights.*
+*A secure, audit-ready platform for cryptocurrency tax compliance and financial clarity.*
 
 ---
 
